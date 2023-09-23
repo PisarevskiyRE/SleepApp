@@ -1,9 +1,10 @@
+import metrics.{AverageSleepDurationPerDay, MinMaxSleepDurationPerDay, SleepTimeWindow}
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import reader.{CsvReader, CsvSchemaBuilder}
 import scheme._
-import transforms.{ConverterToAppUsage, Watermark}
+import transforms.{ConverterToAppUsage, EventAggregator, EventMerge, ExtractDayOfWeek, FilterEvent, KeyDayOfWeekSelector, KeyEventSelector, RenameEvents, Watermark}
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.{AggregateFunction, MapFunction}
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
@@ -30,7 +31,6 @@ object Main extends App {
   val env = StreamExecutionEnvironment
     .getExecutionEnvironment
 
-
   implicit val typeInfo: TypeInformation[CsvRecord] = Types.GENERIC(classOf[CsvRecord])
 
   val csvReader = new CsvReader[CsvRecord](
@@ -42,18 +42,45 @@ object Main extends App {
   val rawStream: DataStreamSource[CsvRecord] = csvReader.getStream()
 
 
-
   val typedStream = rawStream
     .map(new ConverterToAppUsage)
     .assignTimestampsAndWatermarks(
       new Watermark(100).getWatermarkStrategy[AppUsage]()
     )
 
+  val clearStream = typedStream
+    .map(new RenameEvents("Screen", "Sleep"))
+    .keyBy(new KeyEventSelector)
+    .process(new EventAggregator)
+
+
+  val filteredStream= clearStream
+    .filter(new FilterEvent("Sleep", Constant.thresholdSleep))
+    .keyBy(new KeyEventSelector)
+    .process(new EventMerge)
+
+  val averageSleepDurationPerDay = filteredStream
+    .keyBy(new KeyEventSelector)
+    .windowAll(TumblingEventTimeWindows.of(Time.days(3)))
+    .aggregate(new AverageSleepDurationPerDay())
+
+  val sleepTimeWindow = filteredStream
+    .keyBy(new KeyEventSelector)
+    .windowAll(TumblingEventTimeWindows.of(Time.days(3)))
+    .aggregate(new SleepTimeWindow)
+
+
+  val minMaxSleepDurationPerDay = filteredStream
+    .map(new ExtractDayOfWeek)
+    .keyBy(new KeyDayOfWeekSelector)
+    .window(TumblingEventTimeWindows.of(Time.days(3)))
+    .aggregate(new MinMaxSleepDurationPerDay)
 
 
 
-
-  typedStream.print()
+  averageSleepDurationPerDay.print("AverageSleepDurationPerDay -> ")
+  sleepTimeWindow.print("SleepTimeWindow -> ")
+  minMaxSleepDurationPerDay.print("minMaxSleepDurationPerDay -> ")
   env.execute()
 
 
