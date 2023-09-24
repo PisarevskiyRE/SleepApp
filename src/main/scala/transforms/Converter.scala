@@ -4,9 +4,9 @@ import org.apache.flink.api.common.functions.MapFunction
 import scheme._
 
 /**
- * почему-то map не хочет принимать обобщеный класс
+ * почему-то map не хочет принимать обобщения
  */
-//class Converter[A <: Record, B <: DataRecord] extends MapFunction[A, B]{
+//class ConverterToAppUsage[A <: Record, B <: DataRecord] extends MapFunction[A, B]{
 //  override def map(value: A): B = AppUsage(
 //        value.app_name,
 //        value.date,

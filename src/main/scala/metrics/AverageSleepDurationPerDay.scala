@@ -1,11 +1,7 @@
 package metrics
 
 import org.apache.flink.api.common.functions.AggregateFunction
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
-import org.apache.flink.streaming.api.windowing.time.Time
 import scheme.{AppUsage, Constant}
-import transforms.KeyEventSelector
 
 import java.time.Duration
 
@@ -21,7 +17,7 @@ class AverageSleepDurationPerDay extends AggregateFunction[AppUsage, (Duration, 
     )
 
   override def getResult(accumulator: (Duration, Long)): String = {
-    val result = accumulator._1.toMillis.toDouble  / (accumulator._2 * Constant.oneHourse)
+    val result = accumulator._1.toMillis.toDouble  / (accumulator._2 * Constant.oneHours)
     result.toString
   }
 
