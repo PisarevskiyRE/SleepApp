@@ -29,30 +29,27 @@ class EventAggregator extends KeyedProcessFunction[Int, AppUsage,AppUsage]{
                                out: Collector[AppUsage]): Unit = {
 
     val lastAppUsage = previousAppUsage.value()
+    val currentAppUsage = value
 
 
-
-    if (lastAppUsage != null) {
-      if (value.appName == lastAppUsage.appName) {
-
-        val mergedAppUsage = AppUsage(
-          value.appName,
-          scala.math.min(
-            lastAppUsage.startDate,
-            value.startDate),
-          scala.math.max(
-            lastAppUsage.endDate,
-            value.endDate),
-          lastAppUsage.duration.plus(value.duration),
-          if (value.startTime.isBefore(lastAppUsage.startTime)) value.startTime else lastAppUsage.startTime
-        )
-        previousAppUsage.update(mergedAppUsage)
-      } else {
-        out.collect(lastAppUsage)
-        previousAppUsage.update(value)
-      }
+    if (lastAppUsage == null) {
+      previousAppUsage.update(currentAppUsage)
+    } else if (currentAppUsage.appName == lastAppUsage.appName) {
+      val mergedAppUsage = AppUsage(
+        currentAppUsage.appName,
+        scala.math.min(
+          lastAppUsage.startDate,
+          currentAppUsage.startDate),
+        scala.math.max(
+          lastAppUsage.endDate,
+          currentAppUsage.endDate),
+        lastAppUsage.duration.plus(currentAppUsage.duration),
+        if (currentAppUsage.startTime.isBefore(lastAppUsage.startTime)) currentAppUsage.startTime else lastAppUsage.startTime
+      )
+      previousAppUsage.update(mergedAppUsage)
     } else {
-      previousAppUsage.update(value)
+      previousAppUsage.update(currentAppUsage)
+      out.collect(lastAppUsage)
     }
   }
 }

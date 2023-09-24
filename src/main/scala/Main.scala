@@ -36,7 +36,6 @@ object Main extends App {
     .keyBy(new KeyEventSelector)
     .process(new EventAggregator)
 
-
   val filteredStream= clearStream
     .filter(new FilterEvent("Sleep", Constant.thresholdSleep))
     .keyBy(new KeyEventSelector)
@@ -52,13 +51,11 @@ object Main extends App {
     .windowAll(TumblingEventTimeWindows.of(Time.days(3)))
     .aggregate(new SleepTimeWindow)
 
-
   val minMaxSleepDurationPerDay = filteredStream
     .map(new ExtractDayOfWeek)
     .keyBy(new KeyDayOfWeekSelector)
     .window(TumblingEventTimeWindows.of(Time.days(3)))
     .aggregate(new MinMaxSleepDurationPerDay)
-
 
 
   averageSleepDurationPerDay.print("AverageSleepDurationPerDay -> ")
